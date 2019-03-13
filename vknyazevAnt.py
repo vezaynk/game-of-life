@@ -43,13 +43,13 @@ class Cell:
         # Flip color and change next direction
         direction_mutator = self.state[0]*2+1
 
-        if bottom == 0:
+        if bottom == 3:
             new_state = ((1-self.state[0]), (bottom+direction_mutator)%4)
-        if left == 1:
+        if left == 0:
             new_state = ((1-self.state[0]), (left+direction_mutator)%4)
-        if top == 2:
+        if top == 1:
             new_state = ((1-self.state[0]), (top+direction_mutator)%4)
-        if right == 3:
+        if right == 2:
             new_state = ((1-self.state[0]), (right+direction_mutator)%4)
 
         return Cell(self.index, new_state, self._dish)
@@ -62,50 +62,33 @@ class Cell:
 
 class Dish:
 
-    def __init__(self, width=None, height=None, initial=None):
-        if initial is not None:
-            for color, direction in initial:
-                if color != 1 or color != 0:
-                    raise ValueError(f"{color} is not a valid color code")
-                if direction < 0 or direction > 3:
-                    raise ValueError(f"{direction} is not a valid direction code")
-
-        if width is None and height is not None and initial is not None:
-            print(height)
-            width = int(len(initial)/height)
-
+    def __init__(self, width, initial=[]):
         self.width = width
-
         self.cells = []
 
-        # Just checking for consistency if both are supplied
-        if height is not None and initial is not None:
-            if height != len(initial) / width:
-                raise ValueError(f"Inconsistent height and initial values")
+        for color, direction in initial:
+            if color != 1 or color != 0:
+                raise ValueError(f"{color} is not a valid color code")
+            if direction < 0 or direction > 3:
+                raise ValueError(f"{direction} is not a valid direction code")
 
-            # Let the initial value handle everything
-            height = None
-
-        if height is None:
-            if initial is None:
-                raise ValueError(
-                    "If an initial value is not passed, height must be explicitly specified")
-            else:
-                height = int(len(initial) / width)
-                # Check for bad division
-                if (height % 1 != 0):
-                    raise ValueError(
-                        f"Cannot draw rectangle from {len(initial)} cells with a width of {width}")
-        else:
-            initial = [(0, None)]*(height*width)
+        if (len(initial) % width != 0):
+            raise ValueError(
+                f"Cannot draw rectangle from {len(initial)} cells with a width of {width}")
         
+        if len(initial) == 0:
+            initial = [(0, None)]*(width**2)
+
         initial[random.randint(0, len(initial)-1)] = (0, random.randint(0, 3))
 
         self.cells.extend([Cell(i, state, self)
                            for (i, state) in enumerate(initial)])
-
         
-        self.height = height
+        
+
+    @property
+    def height(self):
+        return len(self.cells)//self.width
 
     def __str__(self):
         return ' ' + ' '.join([str(cell.state) + ("\n" if (i+1) % self.width == 0 else '') for i, cell in enumerate(self.cells)]) + ' '
@@ -129,25 +112,28 @@ class Dish:
         self.cells[index].toggle()
 
 class DishDrawer:
-    def __init__(self, canvas_height, canvas_width):
+    def __init__(self, canvas_width, padding):
         self.previous_state = None
-        self._canvas_height = canvas_height
         self._canvas_width = canvas_width
         self.pause()
-        turtle.setup(self._canvas_width, 400)
+        turtle.setup(self._canvas_width+padding, self._canvas_width+padding)
         turtle.tracer(False)
+        self.tick_speed = 500
         wn = turtle.Screen()
         wn.colormode(255)
         t = turtle.Turtle()
+        t.hideturtle()
         self._turtle = t
         self._wn = wn
         size = askinteger("Universe Size", "Enter universe size:")
         if size is None:
             self.quit()
 
-        self._dish = Dish(size, size)
+        self._dish = Dish(size)
         self.draw()
         wn.onkey(self.start, 's')
+        wn.onkey(self.tick_speed_up, 'Up')
+        wn.onkey(self.tick_speed_down, 'Down')
         wn.onkey(self.pause, 'p')
         # wn.onkey(self.draw_file, 'f')
         wn.onkey(self.random_fill, 'r')
@@ -159,10 +145,18 @@ class DishDrawer:
         wn.listen()
         wn.mainloop()
 
+    def tick_speed_up(self):
+        if self.tick_speed > 100:
+            self.tick_speed -= 100
+
+    def tick_speed_down(self):
+        if self.tick_speed < 2000:
+            self.tick_speed += 100
+
     def tick(self):
         if self.active:
             self.draw_next()
-        self._wn.ontimer(self.tick, 500)
+        self._wn.ontimer(self.tick, self.tick_speed)
 
     def random_fill(self):
         self.pause()
@@ -176,9 +170,8 @@ class DishDrawer:
     def move_ant(self, x, y):
         self.pause()
         cell_width = self._canvas_width/self._dish.width
-        cell_height = self._canvas_height/self._dish.height
         column_index = int((x+self._canvas_width/2)/cell_width)
-        row_index = int((self._canvas_height/2-y)/cell_height)
+        row_index = int((self._canvas_width/2-y)/cell_width)
 
         cell_index = column_index + row_index*self._dish.width
         self._dish.move_ant(cell_index)
@@ -187,13 +180,13 @@ class DishDrawer:
     def toggle_cell(self, x, y):
         self.pause()
         cell_width = self._canvas_width/self._dish.width
-        cell_height = self._canvas_height/self._dish.height
-        column_index = int((x+self._canvas_width/2)/cell_width)
-        row_index = int((self._canvas_height/2-y)/cell_height)
-
-        cell_index = column_index + row_index*self._dish.width
-        self._dish.toggle_cell(cell_index)
-        self.draw()
+        column_index = (x+self._canvas_width/2)//cell_width
+        row_index = (self._canvas_width/2-y)//cell_width
+        cell_index = int(column_index + row_index*self._dish.width)
+        # Do not toggle out-of-index cells
+        if column_index < self._dish.width and row_index < self._dish.height and row_index >= 0 and column_index >= 0:
+            self._dish.toggle_cell(cell_index)
+            self.draw()
 
     def quit(self):
         exit(0)
@@ -207,7 +200,6 @@ class DishDrawer:
     def draw(self):
         t = self._turtle
         cell_width = self._canvas_width/self._dish.width
-        cell_height = self._canvas_height/self._dish.height
         
         # Draw all cells
         for i, cell in enumerate(self._dish.cells):
@@ -225,25 +217,20 @@ class DishDrawer:
 
                 t.begin_fill()
                 t.penup()
-                t.goto(-self._canvas_width/2+cell_width*column, self._canvas_height/2-cell_height*row)
+                t.goto(-self._canvas_width/2+cell_width*column, self._canvas_width/2-cell_width*row)
                 t.pendown()
-                t.forward(cell_width)
-                t.right(90)
-                t.forward(cell_height)
-                t.right(90)
-                t.forward(cell_width)
-                t.right(90)
-                t.forward(cell_height)
-                t.right(90)
+                for _ in range(4):
+                    t.forward(cell_width)
+                    t.right(90)
                 t.end_fill()
 
                 # Draw "ant"
                 if cell.state[1] is not None:
                     t.penup()
-                    t.goto(-self._canvas_width/2+cell_width*column+cell_width/2, self._canvas_height/2-cell_height*row-cell_height/2)
+                    t.goto(-self._canvas_width/2+cell_width*column+cell_width/2, self._canvas_width/2-cell_width*row-cell_width/2)
                     t.pendown()
                     t.color("red")
-                    t.right((cell.state[1]-1)*90)
+                    t.right((cell.state[1])*90)
                     
                     t.forward(-10)
                     t.forward(20)
@@ -259,11 +246,12 @@ class DishDrawer:
 
                     
                     # t.penup()
-                    t.left((cell.state[1]-1)*90)
+                    t.left((cell.state[1])*90)
                     t.penup()
                     t.color("black")
 
         self.previous_state = [cell.state for cell in self._dish.cells]
+        self._wn.update()
 
     def draw_next(self):
         self._dish.next_tick()
@@ -271,5 +259,7 @@ class DishDrawer:
 
 
 # Launch
-DishDrawer(400, 400)
-
+try:
+    DishDrawer(400, 50)
+except tkinter.TclError:
+    print("Program Ended")

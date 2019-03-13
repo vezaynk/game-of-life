@@ -101,7 +101,7 @@ class Dish:
 
     @property
     def height(self):
-        return len(self.cells)/self.width
+        return len(self.cells)//self.width
 
     def __str__(self):
         return ' ' + ' '.join([str(cell.state) + ("\n" if (i+1) % self.width == 0 else '') for i, cell in enumerate(self.cells)]) + ' '
@@ -120,12 +120,13 @@ class Dish:
         self.cells[index].toggle()
 
 class DishDrawer:
-    def __init__(self, canvas_width):
+    def __init__(self, canvas_width, padding):
         self.previous_state = None
         self.tick_counter = 0
+        self.tick_speed = 500
         self._canvas_width = canvas_width
         self.pause()
-        turtle.setup(self._canvas_width, self._canvas_width)
+        turtle.setup(self._canvas_width+padding, self._canvas_width+padding)
         turtle.tracer(False)
         wn = turtle.Screen()
         wn.colormode(255)
@@ -141,6 +142,8 @@ class DishDrawer:
         self._dish = Dish(size)
         self.draw()
         wn.onkey(self.start, 's')
+        wn.onkey(self.tick_speed_up, 'Up')
+        wn.onkey(self.tick_speed_down, 'Down')
         wn.onkey(self.pause, 'p')
         wn.onkey(self.draw_file, 'f')
         wn.onkey(self.random_fill, 'r')
@@ -151,10 +154,18 @@ class DishDrawer:
         wn.listen()
         wn.mainloop()
 
+    def tick_speed_up(self):
+        if self.tick_speed > 100:
+            self.tick_speed -= 100
+
+    def tick_speed_down(self):
+        if self.tick_speed < 2000:
+            self.tick_speed += 100
+
     def tick(self):
         if self.active:
             self.draw_next()
-        self._wn.ontimer(self.tick, 100)
+        self._wn.ontimer(self.tick, self.tick_speed)
 
     def random_fill(self):
         self.pause()
@@ -166,12 +177,13 @@ class DishDrawer:
     def toggle_cell(self, x, y):
         self.pause()
         cell_width = self._canvas_width/self._dish.width
-        column_index = int((x+self._canvas_width/2)/cell_width)
-        row_index = int((self._canvas_width/2-y)/cell_width)
-
-        cell_index = column_index + row_index*self._dish.width
-        self._dish.toggle_cell(cell_index)
-        self.draw()
+        column_index = (x+self._canvas_width/2)//cell_width
+        row_index = (self._canvas_width/2-y)//cell_width
+        cell_index = int(column_index + row_index*self._dish.width)
+        # Do not toggle out-of-index cells
+        if column_index < self._dish.width and row_index < self._dish.height and row_index >= 0 and column_index >= 0:
+            self._dish.toggle_cell(cell_index)
+            self.draw()
 
     def quit(self):
         exit(0)
@@ -235,7 +247,7 @@ class DishDrawer:
 
 # Launch
 try:
-    DishDrawer(400)
+    DishDrawer(400, 50)
 except tkinter.TclError:
     print("Program Ended")
 
