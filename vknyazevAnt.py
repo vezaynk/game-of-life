@@ -1,6 +1,6 @@
 import turtle
 import random
-import time
+import math
 from tkinter import Tk, messagebox
 # from tkinter.filedialog import askopenfilename
 from tkinter.simpledialog import askinteger
@@ -99,7 +99,7 @@ class Dish:
         else:
             initial = [(0, None)]*(height*width)
         
-        initial[random.randint(0, len(initial))] = (0, random.randint(0, 3))
+        initial[random.randint(0, len(initial)-1)] = (0, random.randint(0, 3))
 
         self.cells.extend([Cell(i, state, self)
                            for (i, state) in enumerate(initial)])
@@ -225,7 +225,7 @@ class DishDrawer:
 
                 t.begin_fill()
                 t.penup()
-                t.goto(-200+cell_width*column, 200-cell_height*row)
+                t.goto(-self._canvas_width/2+cell_width*column, self._canvas_height/2-cell_height*row)
                 t.pendown()
                 t.forward(cell_width)
                 t.right(90)
@@ -236,6 +236,32 @@ class DishDrawer:
                 t.forward(cell_height)
                 t.right(90)
                 t.end_fill()
+
+                # Draw "ant"
+                if cell.state[1] is not None:
+                    t.penup()
+                    t.goto(-self._canvas_width/2+cell_width*column+cell_width/2, self._canvas_height/2-cell_height*row-cell_height/2)
+                    t.pendown()
+                    t.color("red")
+                    t.right((cell.state[1]-1)*90)
+                    
+                    t.forward(-10)
+                    t.forward(20)
+                    t.right(135)
+                    t.forward(10)
+                    t.forward(-10)
+                    t.left(135)
+
+                    t.left(135)
+                    t.forward(10)
+                    t.forward(-10)
+                    t.right(135)
+
+                    
+                    # t.penup()
+                    t.left((cell.state[1]-1)*90)
+                    t.penup()
+                    t.color("black")
 
         self.previous_state = [cell.state for cell in self._dish.cells]
 
