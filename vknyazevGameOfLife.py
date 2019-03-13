@@ -1,6 +1,7 @@
 import turtle
 import random
 import time
+import tkinter
 from tkinter import Tk, messagebox
 from tkinter.filedialog import askopenfilename
 from tkinter.simpledialog import askinteger
@@ -16,23 +17,24 @@ class Cell:
         self.state = abs(1 - self.state)
         
     def get_nearby(self):
+        not_top = self.index >= self._dish.width
+        not_bottom = self.index < (self._dish.height-1)*self._dish.width
+        not_left = self.index % self._dish.width != 0
+        not_right = (self.index+1) % self._dish.width != 0
+
         # Get top, if not in first row
         # Top cell is a row-worth to the left
-        not_top = self.index >= self._dish.width
         top = self._dish.cells[self.index -
                                self._dish.width].state if not_top else 0
 
         # Get bottom, same idea but row worth to the right
-        not_bottom = self.index < (self._dish.height-1)*self._dish.width
         bottom = self._dish.cells[self.index +
                                   self._dish.width].state if not_bottom else 0
 
         # Get left, if not left-most
-        not_left = self.index % self._dish.width != 0
         left = self._dish.cells[self.index - 1].state if not_left else 0
 
         # Get right, if not right-most
-        not_right = (self.index+1) % self._dish.width != 0
         right = self._dish.cells[self.index +
                                  1].state if not_right else 0
 
@@ -79,45 +81,27 @@ class Cell:
 
 class Dish:
 
-    def __init__(self, width=None, height=None, initial=None):
-        if initial is not None:
-            for n in initial:
-                if n != 0 and n != 1:
-                    raise ValueError(f"{n} not allowed in initial data")
-
-        if width is None and height is not None and initial is not None:
-            print(height)
-            width = int(len(initial)/height)
-
+    def __init__(self, width, initial=[]):
         self.width = width
-
         self.cells = []
 
-        # Just checking for consistency if both are supplied
-        if height is not None and initial is not None:
-            if height != len(initial) / width:
-                raise ValueError(f"Inconsistent height and initial values")
+        for n in initial:
+            if n != 0 and n != 1:
+                raise ValueError(f"{n} not allowed in initial data")
 
-            # Let the initial value handle everything
-            height = None
+        if (len(initial) % width != 0):
+            raise ValueError(
+                f"Cannot draw rectangle from {len(initial)} cells with a width of {width}")
 
-        if height is None:
-            if initial is None:
-                raise ValueError(
-                    "If an initial value is not passed, height must be explicitly specified")
-            else:
-                height = int(len(initial) / width)
-                # Check for bad division
-                if (height % 1 != 0):
-                    raise ValueError(
-                        f"Cannot draw rectangle from {len(initial)} cells with a width of {width}")
-        else:
-            initial = [0]*(height*width)
+        if len(initial) == 0:
+            initial = [0]*(width**2)
 
         self.cells.extend([Cell(i, state, self)
                            for (i, state) in enumerate(initial)])
 
-        self.height = height
+    @property
+    def height(self):
+        return len(self.cells)/self.width
 
     def __str__(self):
         return ' ' + ' '.join([str(cell.state) + ("\n" if (i+1) % self.width == 0 else '') for i, cell in enumerate(self.cells)]) + ' '
@@ -136,24 +120,25 @@ class Dish:
         self.cells[index].toggle()
 
 class DishDrawer:
-    def __init__(self, canvas_height, canvas_width):
+    def __init__(self, canvas_width):
         self.previous_state = None
         self.tick_counter = 0
-        self._canvas_height = canvas_height
         self._canvas_width = canvas_width
         self.pause()
-        turtle.setup(self._canvas_width, 400)
+        turtle.setup(self._canvas_width, self._canvas_width)
         turtle.tracer(False)
         wn = turtle.Screen()
         wn.colormode(255)
         t = turtle.Turtle()
+        t.hideturtle()
+        # t.speed(0)
         self._turtle = t
         self._wn = wn
         size = askinteger("Universe Size", "Enter universe size:")
         if size is None:
             self.quit()
 
-        self._dish = Dish(size, size)
+        self._dish = Dish(size)
         self.draw()
         wn.onkey(self.start, 's')
         wn.onkey(self.pause, 'p')
@@ -169,7 +154,7 @@ class DishDrawer:
     def tick(self):
         if self.active:
             self.draw_next()
-        self._wn.ontimer(self.tick, 500)
+        self._wn.ontimer(self.tick, 100)
 
     def random_fill(self):
         self.pause()
@@ -181,9 +166,8 @@ class DishDrawer:
     def toggle_cell(self, x, y):
         self.pause()
         cell_width = self._canvas_width/self._dish.width
-        cell_height = self._canvas_height/self._dish.height
         column_index = int((x+self._canvas_width/2)/cell_width)
-        row_index = int((self._canvas_height/2-y)/cell_height)
+        row_index = int((self._canvas_width/2-y)/cell_width)
 
         cell_index = column_index + row_index*self._dish.width
         self._dish.toggle_cell(cell_index)
@@ -200,13 +184,10 @@ class DishDrawer:
         try:
             with open(filename) as file:
                 lines = [line.strip() for line in file]
-                self._dish = Dish(height=len(lines), initial=[
-                                int(c) for line in lines for c in line])
-        except Exception:
-            messagebox.showerror("Error", "The selected file is invalid")
-        
-        
-        self.draw()
+                self._dish = Dish(len(lines), [int(c) for line in lines for c in line])
+                self.draw()
+        except Exception as e:
+            messagebox.showerror("Error", f"The selected file is invalid: {e}")
 
     def start(self):
         self.active = True
@@ -217,7 +198,6 @@ class DishDrawer:
     def draw(self):
         t = self._turtle
         cell_width = self._canvas_width/self._dish.width
-        cell_height = self._canvas_height/self._dish.height
         colors = [(255, 0, 0), (0, 0, 255), (0, 255, 0), (0, 0, 0)]
         active_fill = colors[self.tick_counter]
         self.tick_counter = (self.tick_counter+1)%len(colors)
@@ -237,19 +217,16 @@ class DishDrawer:
 
                 t.begin_fill()
                 t.penup()
-                t.goto(-200+cell_width*column, 200-cell_height*row)
+                t.goto(-self._canvas_width/2+cell_width*column, self._canvas_width/2-cell_width*row)
                 t.pendown()
-                t.forward(cell_width)
-                t.right(90)
-                t.forward(cell_height)
-                t.right(90)
-                t.forward(cell_width)
-                t.right(90)
-                t.forward(cell_height)
-                t.right(90)
+                for _ in range(4):
+                    t.forward(cell_width)
+                    t.right(90)
+                    
                 t.end_fill()
 
         self.previous_state = [cell.state for cell in self._dish.cells]
+        self._wn.update()
 
     def draw_next(self):
         self._dish.next_tick()
@@ -257,5 +234,9 @@ class DishDrawer:
 
 
 # Launch
-DishDrawer(400, 400)
+try:
+    DishDrawer(400)
+except tkinter.TclError:
+    print("Program Ended")
+
 
