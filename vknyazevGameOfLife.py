@@ -8,15 +8,29 @@ from tkinter.simpledialog import askinteger
 
 
 class Cell:
+    """
+        A Cell is a 'self-aware' unit. 
+        It is responsible to determine it's own future state by hooking into the parent dish
+    Attributes:
+        state   The current state of cell, represented by a single integer, 1 for alive, 0 for dead
+    """
     def __init__(self, index, state, dish):
         self.index = index
         self.state = state
         self._dish = dish
 
     def toggle(self):
+        """
+            Toggles the state of the cell, turning it from dead to alive or vice-versa 
+        """
         self.state = abs(1 - self.state)
         
     def get_nearby(self):
+        """
+            Gets the number of living cells direction adjacent to it
+
+            Returns an integer
+        """
         not_top = self.index >= self._dish.width
         not_bottom = self.index < (self._dish.height-1)*self._dish.width
         not_left = self.index % self._dish.width != 0
@@ -53,6 +67,11 @@ class Cell:
         return sum((top, bottom, left, right, top_right, top_left, bottom_right, bottom_left))
 
     def get_next_cell(self):
+        """
+            Derives the next state of the cell by observing those around it
+
+            Returns next Cell object
+        """
         nearby = self.get_nearby()
 
         # Statis
@@ -80,7 +99,13 @@ class Cell:
         return self.state == compare.state
 
 class Dish:
-
+    """
+        The dish (petri dish) is responsible for managing the cells it contains
+        Attributes:
+            height  The height of the dish
+            width:  The width of the dish
+            cells:  The cells contained in the dish
+    """
     def __init__(self, width, initial=[]):
         self.width = width
         self.cells = []
@@ -110,13 +135,23 @@ class Dish:
         return ' ' + ' '.join([repr(cell) + ("\n" if (i+1) % self.width == 0 else '') for i, cell in enumerate(self.cells)]) + ' '
 
     def reset(self):
+        """
+            Resets all the cell states to whites
+        """
         for cell in self.cells:
             cell.state = 0
 
     def next_tick(self):
+        """
+            Replaces the current generation of cells with the next
+        """
         self.cells = [cell.get_next_cell() for cell in self.cells]
 
     def toggle_cell(self, index):
+        """
+            Toggles a cell in a particular position
+            See also: Cell.toggle()
+        """
         self.cells[index].toggle()
 
 class DishDrawer:
