@@ -206,8 +206,8 @@ class DishDrawer:
 
     def draw(self):
         t = self._turtle
-        cell_width = 400/self._dish.width
-        cell_height = 400/self._dish.height
+        cell_width = self._canvas_width/self._dish.width
+        cell_height = self._canvas_height/self._dish.height
         
         # Draw all cells
         for i, cell in enumerate(self._dish.cells):
