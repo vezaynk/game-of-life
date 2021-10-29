@@ -11,11 +11,13 @@ Both are built using TKinter and Python 3.
 ## Ant
 
 ![Ant](./Ant.gif)
+
 _The "Ant" points to the next cell it is going to go to._
 
 ## Game of Life
 
 ![Game of Life](./Life.gif)
+
 _Each generation has a new color. This lets us clearly see which cells are new, and which cells are old._
 
 # Controls
